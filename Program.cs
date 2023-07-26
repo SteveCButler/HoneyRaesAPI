@@ -120,11 +120,13 @@ app.MapGet("/servicetickets/{id}", (int id) =>
     return Results.Ok(serviceticket);
 });
 
+//Get All Customers
 app.MapGet("/cutomers", () =>
 {
     return customers;
 });
 
+//GET Customer by Id
 app.MapGet("/cutomers/{id}", (int id) =>
 {
     Customer customer = customers.FirstOrDefault(x => x.Id == id);
@@ -136,11 +138,13 @@ customer.ServiceTicket = serviceTickets.FirstOrDefault(s => s.CustomerId == cust
     return Results.Ok(customer);
 });
 
+//GET All employees
 app.MapGet("/employees", () =>
 {
     return employees;
 });
 
+//GET employee by Id
 app.MapGet("/employees/{id}", (int id) =>
 {
     Employee employee = employees.FirstOrDefault(x => x.Id == id);
@@ -152,6 +156,7 @@ app.MapGet("/employees/{id}", (int id) =>
     return Results.Ok(employee);
 });
 
+//Create new service ticket
 app.MapPost("/servicetickets", (ServiceTicket serviceTicket) =>
 {
     serviceTicket.Id = serviceTickets.Max(st => st.Id) + 1;
@@ -159,11 +164,13 @@ app.MapPost("/servicetickets", (ServiceTicket serviceTicket) =>
     return serviceTicket;
 });
 
+//Delete ticket by Id
 app.MapDelete("/servicetickets", (int id) =>
 {
     serviceTickets.RemoveAll(s => s.Id == id);
 });
 
+//Update Service Ticket
 app.MapPut("/servicetickets/{id}", (int id, ServiceTicket serviceTicket) =>
 {
     ServiceTicket ticketToUpdate = serviceTickets.FirstOrDefault(st => st.Id == id);
@@ -181,7 +188,20 @@ app.MapPut("/servicetickets/{id}", (int id, ServiceTicket serviceTicket) =>
     return Results.Ok();
 });
 
+//GET all open tickets
+app.MapGet("/opentickets", () =>
+{
+    var openTickets = serviceTickets.Where(st => st.DateCompleted == null).ToList();
+    return openTickets;
+});
 
+//Complete ticket by adding DateTime
+app.MapPost("/servicetickets/{id}/complete", (int id) =>
+{
+    ServiceTicket ticketToComplete = serviceTickets.FirstOrDefault(st => st.Id == id);
+    ticketToComplete.DateCompleted = DateTime.Today;
+
+});
 
 
 app.Run();
