@@ -1,6 +1,46 @@
 using HoneyRaesAPI.Models;
+using Microsoft.OpenApi.Models;
+using System.Reflection;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
+// Add services to the container.
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+//builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "ToDo API",
+        Description = "An ASP.NET Core Web API for managing ToDo items",
+        TermsOfService = new Uri("https://example.com/terms"),
+        Contact = new OpenApiContact
+        {
+            Name = "Example Contact",
+            Url = new Uri("https://example.com/contact")
+        },
+        License = new OpenApiLicense
+        {
+            Name = "Example License",
+            Url = new Uri("https://example.com/license")
+        }
+    });
+     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,
+        $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+    
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 
 List<Customer> customers = new List<Customer>
@@ -39,6 +79,12 @@ List<Employee> employees = new List<Employee>
         Id = 2,
         Name = "Johnny",
         Specialty = "Computer repair"
+    },
+    new Employee
+    {
+        Id = 3,
+        Name = "Aidan",
+        Specialty = "Blacksmith"
     }
 };
 List<ServiceTicket> serviceTickets = new List<ServiceTicket> 
@@ -51,7 +97,8 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "Broken phone screen",
         Emergency = false,
         DateCompleted = null,
-    },  new ServiceTicket
+    },  
+    new ServiceTicket
     {
         Id = 2,
         CustomerId = 2,
@@ -59,7 +106,8 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "Laptop keyboard not working",
         Emergency = false,
         DateCompleted = null,
-    },  new ServiceTicket
+    },  
+    new ServiceTicket
     {
         Id = 3,
         CustomerId = 2,
@@ -67,7 +115,8 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "Laptop screen flickering",
         Emergency = false,
         DateCompleted = new DateTime(2023, 7 , 22)
-    },  new ServiceTicket
+    },  
+    new ServiceTicket
     {
         Id = 4,
         CustomerId = 3,
@@ -75,38 +124,44 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "System won't power on",
         Emergency = false,
         DateCompleted = new DateTime(2023, 3 , 12)
-    },  new ServiceTicket
+    },  
+    new ServiceTicket
     {
         Id = 5,
         CustomerId = 1,
         EmployeeId = 2,
         Description = "Tablet won't charge",
+        Emergency = true,
+        DateCompleted = null,
+    }, new ServiceTicket
+    {
+        Id = 6,
+        CustomerId = 1,
+        EmployeeId = null,
+        Description = "Tablet sound not working",
         Emergency = false,
-        DateCompleted = new DateTime(2023, 6 , 22)
+        DateCompleted = null,
+    }, new ServiceTicket
+    {
+        Id = 7,
+        CustomerId = 1,
+        EmployeeId = null,
+        Description = "Tablet sound won't turn off",
+        Emergency = true,
+        DateCompleted = null,
+        DateOpened = new DateTime(2022, 3 , 12)
     },
 };
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+//Get All Service Tickets
 app.MapGet("/servicetickets", () =>
 {
     return serviceTickets;
 });
 
 
-
+//Get Service ticket by ID, include Employee and Customer info related to ticket
 app.MapGet("/servicetickets/{id}", (int id) =>
 {
     ServiceTicket serviceticket = serviceTickets.FirstOrDefault(x => x.Id == id);
@@ -121,13 +176,13 @@ app.MapGet("/servicetickets/{id}", (int id) =>
 });
 
 //Get All Customers
-app.MapGet("/cutomers", () =>
+app.MapGet("/customers", () =>
 {
     return customers;
 });
 
 //GET Customer by Id
-app.MapGet("/cutomers/{id}", (int id) =>
+app.MapGet("/customers/{id}", (int id) =>
 {
     Customer customer = customers.FirstOrDefault(x => x.Id == id);
     if (customer == null)
@@ -160,6 +215,7 @@ app.MapGet("/employees/{id}", (int id) =>
 app.MapPost("/servicetickets", (ServiceTicket serviceTicket) =>
 {
     serviceTicket.Id = serviceTickets.Max(st => st.Id) + 1;
+    serviceTicket.DateOpened = DateTime.Now;
     serviceTickets.Add(serviceTicket);
     return serviceTicket;
 });
@@ -195,11 +251,48 @@ app.MapGet("/opentickets", () =>
     return openTickets;
 });
 
+//GET all open Emergency tickets - 1. Emergencies
+app.MapGet("/emergencytickets", () =>
+{
+    var openTickets = serviceTickets.Where(st => st.DateCompleted == null).ToList();
+    var emergencyTickets = serviceTickets.Where(st => st.Emergency == true).ToList();
+    return emergencyTickets;
+});
+
+//GET all unassigned tickets - 2. Unassigned
+app.MapGet("/unassigned", () =>
+{
+    var unassignedTickets = serviceTickets.Where(st => st.EmployeeId == null).ToList();
+    return unassignedTickets;
+});
+
+//GET all available employees
+app.MapGet("/availableEmployee", () =>
+{
+    List<int> employeeIds = employees.Select(p => p.Id).ToList();
+    //var availableEmployees = serviceTickets.Where()
+    return employeeIds;
+});
+
+app.MapGet("pastTickets", () =>
+{
+   // var pastTicketsByDate = serviceTickets.Where(st => st.DateCompleted != null).OrderBy().ToList();
+
+});
+
 //Complete ticket by adding DateTime
 app.MapPost("/servicetickets/{id}/complete", (int id) =>
 {
     ServiceTicket ticketToComplete = serviceTickets.FirstOrDefault(st => st.Id == id);
     ticketToComplete.DateCompleted = DateTime.Today;
+
+});
+
+//3. Inactive Customers
+app.MapGet("/inactiveCustomer", () =>
+{
+    var inactiveTickets = serviceTickets.Where(x => x.DateCompleted == null);
+    
 
 });
 
