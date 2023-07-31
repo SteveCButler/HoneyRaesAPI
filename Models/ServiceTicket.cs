@@ -15,4 +15,6 @@ public class ServiceTicket
 
     public Customer Customer { get; set; }
 
+    public DateTime DateOpened { get; set; }
+
 }
