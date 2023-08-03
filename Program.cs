@@ -1,5 +1,7 @@
 using HoneyRaesAPI.Models;
 using Microsoft.OpenApi.Models;
+using System.Diagnostics.CodeAnalysis;
+using System.Net.Sockets;
 using System.Reflection;
 
 
@@ -28,8 +30,7 @@ builder.Services.AddSwaggerGen(options =>
             Url = new Uri("https://example.com/license")
         }
     });
-     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,
-        $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+
     
 });
 
@@ -87,7 +88,7 @@ List<Employee> employees = new List<Employee>
         Specialty = "Blacksmith"
     }
 };
-List<ServiceTicket> serviceTickets = new List<ServiceTicket> 
+List<ServiceTicket> serviceTickets = new List<ServiceTicket>
 {
     new ServiceTicket
     {
@@ -96,8 +97,8 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         EmployeeId = 1,
         Description = "Broken phone screen",
         Emergency = false,
-        DateCompleted = null,
-    },  
+        DateCompleted = new DateTime(2023, 7, 22),
+    },
     new ServiceTicket
     {
         Id = 2,
@@ -105,8 +106,8 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         EmployeeId = 2,
         Description = "Laptop keyboard not working",
         Emergency = false,
-        DateCompleted = null,
-    },  
+        DateCompleted = new DateTime(2023, 7, 15),
+    },
     new ServiceTicket
     {
         Id = 3,
@@ -115,7 +116,7 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "Laptop screen flickering",
         Emergency = false,
         DateCompleted = new DateTime(2023, 7 , 22)
-    },  
+    },
     new ServiceTicket
     {
         Id = 4,
@@ -123,8 +124,8 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         EmployeeId = 1,
         Description = "System won't power on",
         Emergency = false,
-        DateCompleted = new DateTime(2023, 3 , 12)
-    },  
+        DateCompleted = new DateTime(2021, 3 , 12)
+    },
     new ServiceTicket
     {
         Id = 5,
@@ -132,25 +133,44 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         EmployeeId = 2,
         Description = "Tablet won't charge",
         Emergency = true,
-        DateCompleted = null,
+        DateCompleted = new DateTime(2020, 1, 20),
     }, new ServiceTicket
     {
         Id = 6,
         CustomerId = 1,
-        EmployeeId = null,
+        EmployeeId = 2,
         Description = "Tablet sound not working",
         Emergency = false,
-        DateCompleted = null,
+        DateCompleted = new DateTime(2023, 8, 1),
     }, new ServiceTicket
     {
         Id = 7,
         CustomerId = 1,
-        EmployeeId = null,
+        EmployeeId = 2,
         Description = "Tablet sound won't turn off",
         Emergency = true,
+        DateCompleted = new DateTime(2023, 8, 1),
+
+    }, new ServiceTicket
+    {
+        Id = 8,
+        CustomerId = 1,
+        EmployeeId = 1,
+        Description = "Laptop sound won't turn off",
+        Emergency = true,
+        DateCompleted = new DateTime(2023, 8, 1),
+
+    }, 
+    new ServiceTicket
+    {
+        Id = 9,
+        EmployeeId = 1,
+        CustomerId = 2,
+        Description = "Tablet problems",
+        Emergency = true,
         DateCompleted = null,
-        DateOpened = new DateTime(2022, 3 , 12)
-    },
+       
+    }
 };
 
 
@@ -215,7 +235,6 @@ app.MapGet("/employees/{id}", (int id) =>
 app.MapPost("/servicetickets", (ServiceTicket serviceTicket) =>
 {
     serviceTicket.Id = serviceTickets.Max(st => st.Id) + 1;
-    serviceTicket.DateOpened = DateTime.Now;
     serviceTickets.Add(serviceTicket);
     return serviceTicket;
 });
@@ -251,20 +270,7 @@ app.MapGet("/opentickets", () =>
     return openTickets;
 });
 
-//GET all open Emergency tickets - 1. Emergencies
-app.MapGet("/emergencytickets", () =>
-{
-    var openTickets = serviceTickets.Where(st => st.DateCompleted == null).ToList();
-    var emergencyTickets = serviceTickets.Where(st => st.Emergency == true).ToList();
-    return emergencyTickets;
-});
 
-//GET all unassigned tickets - 2. Unassigned
-app.MapGet("/unassigned", () =>
-{
-    var unassignedTickets = serviceTickets.Where(st => st.EmployeeId == null).ToList();
-    return unassignedTickets;
-});
 
 //GET all available employees
 app.MapGet("/availableEmployee", () =>
@@ -274,11 +280,7 @@ app.MapGet("/availableEmployee", () =>
     return employeeIds;
 });
 
-app.MapGet("pastTickets", () =>
-{
-   // var pastTicketsByDate = serviceTickets.Where(st => st.DateCompleted != null).OrderBy().ToList();
 
-});
 
 //Complete ticket by adding DateTime
 app.MapPost("/servicetickets/{id}/complete", (int id) =>
@@ -288,14 +290,101 @@ app.MapPost("/servicetickets/{id}/complete", (int id) =>
 
 });
 
-//3. Inactive Customers
-app.MapGet("/inactiveCustomer", () =>
+//1. Emergencies - GET all open Emergency tickets - 
+app.MapGet("/emergencytickets", () =>
 {
-    var inactiveTickets = serviceTickets.Where(x => x.DateCompleted == null);
-    
+    var openTickets = serviceTickets.Where(st => st.DateCompleted == null).ToList();
+    var emergencyTickets = serviceTickets.Where(st => st.Emergency == true).ToList();
+    return emergencyTickets;
+});
+
+//2. Unassigned - GET all unassigned tickets - 
+app.MapGet("/unassigned", () =>
+{
+    var unassignedTickets = serviceTickets.Where(st => st.EmployeeId == null).ToList();
+    return unassignedTickets;
+});
+
+//3. Inactive Customers - GET all tickets open more than 1 year
+app.MapGet("/customers/inactive", () =>
+{
+    DateTime now = DateTime.Now.Date;
+
+
+    var closedTickets = serviceTickets.Where(st => st.DateCompleted != null).ToList();
+    List<ServiceTicket> inactiveCustomerTickets = new List<ServiceTicket>();
+    List<Customer> inactiveCustomers = new List<Customer>();
+
+    foreach (var ticket in closedTickets)
+    {
+        var time = ticket.DateCompleted;
+        TimeSpan timeSpan = now - Convert.ToDateTime(time);
+        if (timeSpan.TotalDays > 365)
+        {
+           
+            inactiveCustomerTickets.Add(ticket);
+            
+        }
+    }
+
+    foreach (var ticket in inactiveCustomerTickets)
+    {
+        var inactiveCustomer = customers.FirstOrDefault(x => x.Id == ticket.CustomerId);
+        inactiveCustomers.Add(inactiveCustomer);
+    }
+    return  inactiveCustomers;
+});
+
+
+
+//4. Available employees - GET employees not currently assigned to an incomplete service ticket
+app.MapGet("/employees/available", () =>
+{
+    List<ServiceTicket> incompleteTickets = serviceTickets.Where(t => t.DateCompleted == null).ToList();
+    List<Employee> availableEmployees = employees.Where(e => !incompleteTickets.Exists(t => t.EmployeeId == e.Id)).ToList();
+
+    return availableEmployees;
 
 });
 
+//5. Employee's customers - return all of the customers for whom a given employee
+//   has been assigned to a service ticket (whether completed or not)
+app.MapGet("/employee/{id}/customers", (int id) =>
+{
+    var employeeTickets = serviceTickets.Where(t => t.EmployeeId == id).ToList();
+    var employeeCustomerIds = employeeTickets.Select(t => t.CustomerId).ToList();
+    return customers.Where(c => employeeCustomerIds.Contains(c.Id));
+});
+
+//6. Employee of the month - return the employee who has completed the most service tickets last month
+app.MapGet("employee/employee-of-month", () =>
+{
+    var currentMonth = DateTime.Now.Month;
+
+    var monthlyTicketsByEmployee = serviceTickets.Where(t => Convert.ToDateTime(t.DateCompleted).Month == currentMonth).GroupBy(t => t.EmployeeId).ToList();
+    var employeesGroups = monthlyTicketsByEmployee.Select( s =>  s.Key);
+
+    var employee = employees.FirstOrDefault(x => employeesGroups.FirstOrDefault() == x.Id);
+    return employee;
+
+});
+
+//7. Past Ticket review - return completed tickets in order of the completion date
+app.MapGet("servicetickets/pastTickets", () =>
+{
+    var pastTicketsByDate = serviceTickets.Where(st => st.DateCompleted != null).OrderBy(t => t.DateCompleted ).ToList();
+    return pastTicketsByDate;
+
+});
+
+// 8.Prioritized Tickets(challenge) - return all tickets that are incomplete,
+//   in order first by whether they are emergencies, then by whether they are assigned or not (unassigned first).
+app.MapGet("servicetickets/priority", () =>
+{
+    var emergencyTickets = serviceTickets.Where(st => st.DateCompleted != null).OrderByDescending(t => t.Emergency).ThenBy(t => t.EmployeeId).ToList();
+    return emergencyTickets;
+
+});
 
 app.Run();
 
