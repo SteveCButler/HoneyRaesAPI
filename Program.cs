@@ -98,7 +98,7 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "Broken phone screen",
         Emergency = false,
         DateCompleted = new DateTime(2023, 7, 22),
-    },  
+    },
     new ServiceTicket
     {
         Id = 2,
@@ -107,7 +107,7 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "Laptop keyboard not working",
         Emergency = false,
         DateCompleted = new DateTime(2023, 7, 15),
-    },  
+    },
     new ServiceTicket
     {
         Id = 3,
@@ -116,7 +116,7 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "Laptop screen flickering",
         Emergency = false,
         DateCompleted = new DateTime(2023, 7 , 22)
-    },  
+    },
     new ServiceTicket
     {
         Id = 4,
@@ -125,7 +125,7 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "System won't power on",
         Emergency = false,
         DateCompleted = new DateTime(2021, 3 , 12)
-    },  
+    },
     new ServiceTicket
     {
         Id = 5,
@@ -150,26 +150,27 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>
         Description = "Tablet sound won't turn off",
         Emergency = true,
         DateCompleted = new DateTime(2023, 8, 1),
-       
+
     }, new ServiceTicket
     {
         Id = 8,
         CustomerId = 1,
         EmployeeId = 1,
-        Description = "Tablet sound won't turn off",
+        Description = "Laptop sound won't turn off",
         Emergency = true,
         DateCompleted = new DateTime(2023, 8, 1),
 
-    }, new ServiceTicket
+    }, 
+    new ServiceTicket
     {
         Id = 9,
-        CustomerId = 1,
-        EmployeeId = 2,
-        Description = "Tablet sound won't turn off",
+        EmployeeId = 1,
+        CustomerId = 2,
+        Description = "Tablet problems",
         Emergency = true,
         DateCompleted = null,
        
-    },
+    }
 };
 
 
@@ -369,15 +370,21 @@ app.MapGet("employee/employee-of-month", () =>
 });
 
 //7. Past Ticket review - return completed tickets in order of the completion date
-app.MapGet("pastTickets", () =>
+app.MapGet("servicetickets/pastTickets", () =>
 {
-    // var pastTicketsByDate = serviceTickets.Where(st => st.DateCompleted != null).OrderBy().ToList();
+    var pastTicketsByDate = serviceTickets.Where(st => st.DateCompleted != null).OrderBy(t => t.DateCompleted ).ToList();
+    return pastTicketsByDate;
 
 });
 
 // 8.Prioritized Tickets(challenge) - return all tickets that are incomplete,
 //   in order first by whether they are emergencies, then by whether they are assigned or not (unassigned first).
+app.MapGet("servicetickets/priority", () =>
+{
+    var emergencyTickets = serviceTickets.Where(st => st.DateCompleted != null).OrderByDescending(t => t.Emergency).ThenBy(t => t.EmployeeId).ToList();
+    return emergencyTickets;
 
+});
 
 app.Run();
 
